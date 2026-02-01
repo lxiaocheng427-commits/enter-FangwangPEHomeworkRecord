@@ -14,7 +14,167 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      classes: {
+        Row: {
+          class_number: string
+          created_at: string | null
+          grade: string
+          id: string
+          school_name: string | null
+        }
+        Insert: {
+          class_number: string
+          created_at?: string | null
+          grade: string
+          id?: string
+          school_name?: string | null
+        }
+        Update: {
+          class_number?: string
+          created_at?: string | null
+          grade?: string
+          id?: string
+          school_name?: string | null
+        }
+        Relationships: []
+      }
+      exercise_records: {
+        Row: {
+          created_at: string | null
+          exercise_date: string
+          exercise_type: string
+          id: string
+          notes: string | null
+          photo_url: string | null
+          student_id: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          exercise_date: string
+          exercise_type: string
+          id?: string
+          notes?: string | null
+          photo_url?: string | null
+          student_id?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          exercise_date?: string
+          exercise_type?: string
+          id?: string
+          notes?: string | null
+          photo_url?: string | null
+          student_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "exercise_records_student_id_fkey"
+            columns: ["student_id"]
+            isOneToOne: false
+            referencedRelation: "students"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      profiles: {
+        Row: {
+          created_at: string | null
+          id: string
+          name: string
+          role: string
+        }
+        Insert: {
+          created_at?: string | null
+          id: string
+          name: string
+          role: string
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          name?: string
+          role?: string
+        }
+        Relationships: []
+      }
+      students: {
+        Row: {
+          class_id: string | null
+          created_at: string | null
+          gender: string
+          id: string
+          name: string
+          parent_id: string | null
+        }
+        Insert: {
+          class_id?: string | null
+          created_at?: string | null
+          gender: string
+          id?: string
+          name: string
+          parent_id?: string | null
+        }
+        Update: {
+          class_id?: string | null
+          created_at?: string | null
+          gender?: string
+          id?: string
+          name?: string
+          parent_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "students_class_id_fkey"
+            columns: ["class_id"]
+            isOneToOne: false
+            referencedRelation: "classes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "students_parent_id_fkey"
+            columns: ["parent_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      teacher_classes: {
+        Row: {
+          class_id: string | null
+          created_at: string | null
+          id: string
+          teacher_id: string | null
+        }
+        Insert: {
+          class_id?: string | null
+          created_at?: string | null
+          id?: string
+          teacher_id?: string | null
+        }
+        Update: {
+          class_id?: string | null
+          created_at?: string | null
+          id?: string
+          teacher_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "teacher_classes_class_id_fkey"
+            columns: ["class_id"]
+            isOneToOne: false
+            referencedRelation: "classes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "teacher_classes_teacher_id_fkey"
+            columns: ["teacher_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never

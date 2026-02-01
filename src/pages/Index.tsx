@@ -1,15 +1,73 @@
-// Update this page (the content is just a fallback if you fail to update the page)
+import { useEffect, useState, useCallback } from "react";
+import { useNavigate } from "react-router-dom";
+import { useAuth } from "@/hooks/use-auth";
+import { supabase } from "@/integrations/supabase/client";
+import ParentHome from "./ParentHome";
+import TeacherHome from "./TeacherHome";
+import { ProfileWithRelations } from "@/types/database";
 
 const Index = () => {
-  return (
-    <div className="w-full h-full p-[32px] bg-gradient-to-b from-[#4E54C8] to-[#A8C0FF] flex flex-col max-md:pt-[32px] max-md:pl-[20px] max-md:pr-[20px] max-md:pb-[32px]">
-      <div className="text-[26px] text-white max-md:text-[22px]">Your App Name</div>
-      <div className='h-full flex-1 flex flex-col items-center justify-center'>
-        <div className='text-[48px] text-white text-center max-md:text-[26px]'>Welcome to your blank app</div>
-        <div className='text-[24px] text-white text-center max-md:text-[16px]'>Make any App yours with ease.</div>
+  const { user, loading } = useAuth();
+  const navigate = useNavigate();
+  const [profile, setProfile] = useState<ProfileWithRelations | null>(null);
+  const [checkingProfile, setCheckingProfile] = useState(true);
+
+  const checkProfile = useCallback(async () => {
+    if (!user) return;
+    
+    const { data: profileData } = await supabase
+      .from("profiles")
+      .select("*, students(*), teacher_classes(*)")
+      .eq("id", user.id)
+      .single();
+
+    if (profileData) {
+      // 检查是否需要完善信息
+      if (profileData.role === "parent" && (!profileData.students || profileData.students.length === 0)) {
+        navigate("/setup");
+        return;
+      }
+      if (profileData.role === "teacher" && (!profileData.teacher_classes || profileData.teacher_classes.length === 0)) {
+        navigate("/setup");
+        return;
+      }
+      setProfile(profileData as ProfileWithRelations);
+    }
+    
+    setCheckingProfile(false);
+  }, [user, navigate]);
+
+  useEffect(() => {
+    if (!loading) {
+      if (!user) {
+        navigate("/login");
+      } else {
+        checkProfile();
+      }
+    }
+  }, [user, loading, navigate, checkProfile]);
+
+  if (loading || checkingProfile) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary/10 via-background to-accent/10">
+        <div className="text-center">
+          <div className="text-4xl mb-4">🏃‍♂️</div>
+          <p className="text-muted-foreground">加载中...</p>
+        </div>
       </div>
-    </div>
-  );
+    );
+  }
+
+  if (!profile) {
+    return null;
+  }
+
+  // 根据角色显示不同的首页
+  if (profile.role === "teacher") {
+    return <TeacherHome />;
+  }
+
+  return <ParentHome />;
 };
 
 export default Index;

@@ -1,0 +1,173 @@
+-- 创建用户档案表
+CREATE TABLE profiles (
+  id UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
+  role TEXT NOT NULL CHECK (role IN ('parent', 'teacher')),
+  name TEXT NOT NULL,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- 创建班级表
+CREATE TABLE classes (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  grade TEXT NOT NULL,
+  class_number TEXT NOT NULL,
+  school_name TEXT DEFAULT '方旺小学',
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  UNIQUE(grade, class_number)
+);
+
+-- 创建学生表
+CREATE TABLE students (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  parent_id UUID REFERENCES profiles(id) ON DELETE CASCADE,
+  name TEXT NOT NULL,
+  gender TEXT NOT NULL CHECK (gender IN ('male', 'female')),
+  class_id UUID REFERENCES classes(id) ON DELETE SET NULL,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- 创建教师班级关联表
+CREATE TABLE teacher_classes (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  teacher_id UUID REFERENCES profiles(id) ON DELETE CASCADE,
+  class_id UUID REFERENCES classes(id) ON DELETE CASCADE,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  UNIQUE(teacher_id, class_id)
+);
+
+-- 创建运动记录表
+CREATE TABLE exercise_records (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  student_id UUID REFERENCES students(id) ON DELETE CASCADE,
+  exercise_type TEXT NOT NULL,
+  exercise_date DATE NOT NULL,
+  photo_url TEXT,
+  notes TEXT,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  UNIQUE(student_id, exercise_date)
+);
+
+-- 启用RLS
+ALTER TABLE profiles ENABLE ROW LEVEL SECURITY;
+ALTER TABLE classes ENABLE ROW LEVEL SECURITY;
+ALTER TABLE students ENABLE ROW LEVEL SECURITY;
+ALTER TABLE teacher_classes ENABLE ROW LEVEL SECURITY;
+ALTER TABLE exercise_records ENABLE ROW LEVEL SECURITY;
+
+-- Profiles策略
+CREATE POLICY "Users can view own profile"
+  ON profiles FOR SELECT
+  TO authenticated
+  USING (auth.uid() = id);
+
+CREATE POLICY "Users can update own profile"
+  ON profiles FOR UPDATE
+  TO authenticated
+  USING (auth.uid() = id);
+
+CREATE POLICY "Users can insert own profile"
+  ON profiles FOR INSERT
+  TO authenticated
+  WITH CHECK (auth.uid() = id);
+
+-- Classes策略（所有认证用户可读）
+CREATE POLICY "Authenticated users can view classes"
+  ON classes FOR SELECT
+  TO authenticated
+  USING (true);
+
+CREATE POLICY "Teachers can manage classes"
+  ON classes FOR ALL
+  TO authenticated
+  USING (EXISTS (
+    SELECT 1 FROM profiles WHERE id = auth.uid() AND role = 'teacher'
+  ));
+
+-- Students策略
+CREATE POLICY "Parents can view own students"
+  ON students FOR SELECT
+  TO authenticated
+  USING (parent_id = auth.uid());
+
+CREATE POLICY "Teachers can view students in their classes"
+  ON students FOR SELECT
+  TO authenticated
+  USING (EXISTS (
+    SELECT 1 FROM teacher_classes tc
+    JOIN profiles p ON p.id = auth.uid()
+    WHERE tc.teacher_id = p.id AND tc.class_id = students.class_id
+  ));
+
+CREATE POLICY "Parents can manage own students"
+  ON students FOR ALL
+  TO authenticated
+  USING (parent_id = auth.uid())
+  WITH CHECK (parent_id = auth.uid());
+
+-- Teacher_classes策略
+CREATE POLICY "Teachers can view own class assignments"
+  ON teacher_classes FOR SELECT
+  TO authenticated
+  USING (teacher_id = auth.uid());
+
+CREATE POLICY "Teachers can manage own class assignments"
+  ON teacher_classes FOR ALL
+  TO authenticated
+  USING (teacher_id = auth.uid())
+  WITH CHECK (teacher_id = auth.uid());
+
+-- Exercise_records策略
+CREATE POLICY "Parents can view own students' records"
+  ON exercise_records FOR SELECT
+  TO authenticated
+  USING (EXISTS (
+    SELECT 1 FROM students WHERE id = exercise_records.student_id AND parent_id = auth.uid()
+  ));
+
+CREATE POLICY "Teachers can view records of their class students"
+  ON exercise_records FOR SELECT
+  TO authenticated
+  USING (EXISTS (
+    SELECT 1 FROM students s
+    JOIN teacher_classes tc ON tc.class_id = s.class_id
+    WHERE s.id = exercise_records.student_id AND tc.teacher_id = auth.uid()
+  ));
+
+CREATE POLICY "Parents can manage own students' records"
+  ON exercise_records FOR ALL
+  TO authenticated
+  USING (EXISTS (
+    SELECT 1 FROM students WHERE id = exercise_records.student_id AND parent_id = auth.uid()
+  ))
+  WITH CHECK (EXISTS (
+    SELECT 1 FROM students WHERE id = exercise_records.student_id AND parent_id = auth.uid()
+  ));
+
+-- 创建自动创建profile的触发器
+CREATE OR REPLACE FUNCTION handle_new_user()
+RETURNS TRIGGER AS $$
+BEGIN
+  INSERT INTO profiles (id, role, name)
+  VALUES (NEW.id, 'parent', COALESCE(NEW.raw_user_meta_data->>'name', '新用户'));
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+CREATE TRIGGER on_auth_user_created
+  AFTER INSERT ON auth.users
+  FOR EACH ROW EXECUTE FUNCTION handle_new_user();
+
+-- 插入默认班级数据
+INSERT INTO classes (grade, class_number) VALUES
+  ('一年级', '1班'),
+  ('一年级', '2班'),
+  ('二年级', '1班'),
+  ('二年级', '2班'),
+  ('三年级', '1班'),
+  ('三年级', '2班'),
+  ('四年级', '1班'),
+  ('四年级', '2班'),
+  ('五年级', '1班'),
+  ('五年级', '2班'),
+  ('六年级', '1班'),
+  ('六年级', '2班');

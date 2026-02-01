@@ -1,4 +1,6 @@
 import Index from "./pages/Index";
+import Login from "./pages/Login";
+import Setup from "./pages/Setup";
 import NotFound from "./pages/NotFound";
 
 export const routers = [
@@ -6,6 +8,16 @@ export const routers = [
       path: "/",
       name: 'home',
       element: <Index />,
+    },
+    {
+      path: "/login",
+      name: 'login',
+      element: <Login />,
+    },
+    {
+      path: "/setup",
+      name: 'setup',
+      element: <Setup />,
     },
     /* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */
     {
