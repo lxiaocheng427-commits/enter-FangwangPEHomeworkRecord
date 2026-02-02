@@ -9,27 +9,48 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
 import { Dumbbell } from "lucide-react";
 
+const UNIFIED_PASSWORD = "123456";
+
 export default function Login() {
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
+  const [phone, setPhone] = useState("");
   const [name, setName] = useState("");
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
   const { toast } = useToast();
 
+  // 将手机号转换为邮箱格式以适配Supabase
+  const phoneToEmail = (phoneNumber: string) => {
+    return `${phoneNumber}@fangwang.school`;
+  };
+
+  const validatePhone = (phoneNumber: string) => {
+    const phoneRegex = /^1[3-9]\d{9}$/;
+    return phoneRegex.test(phoneNumber);
+  };
+
   const handleSignIn = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
 
+    if (!validatePhone(phone)) {
+      toast({
+        title: "登录失败",
+        description: "请输入正确的手机号码",
+        variant: "destructive",
+      });
+      setLoading(false);
+      return;
+    }
+
     const { error } = await supabase.auth.signInWithPassword({
-      email,
-      password,
+      email: phoneToEmail(phone),
+      password: UNIFIED_PASSWORD,
     });
 
     if (error) {
       toast({
         title: "登录失败",
-        description: error.message,
+        description: "手机号不存在或密码错误",
         variant: "destructive",
       });
     } else {
@@ -43,12 +64,23 @@ export default function Login() {
     e.preventDefault();
     setLoading(true);
 
+    if (!validatePhone(phone)) {
+      toast({
+        title: "注册失败",
+        description: "请输入正确的手机号码",
+        variant: "destructive",
+      });
+      setLoading(false);
+      return;
+    }
+
     const { error } = await supabase.auth.signUp({
-      email,
-      password,
+      email: phoneToEmail(phone),
+      password: UNIFIED_PASSWORD,
       options: {
         data: {
           name,
+          phone,
         },
         emailRedirectTo: `${window.location.origin}/`,
       },
@@ -57,14 +89,18 @@ export default function Login() {
     if (error) {
       toast({
         title: "注册失败",
-        description: error.message,
+        description: error.message.includes("already registered") 
+          ? "该手机号已注册" 
+          : "注册失败，请稍后重试",
         variant: "destructive",
       });
     } else {
       toast({
         title: "注册成功",
-        description: "请登录您的账户",
+        description: "账号已创建，正在登录...",
       });
+      // 注册成功后自动跳转
+      setTimeout(() => navigate("/"), 1000);
     }
 
     setLoading(false);
@@ -93,26 +129,19 @@ export default function Login() {
             <TabsContent value="signin">
               <form onSubmit={handleSignIn} className="space-y-4">
                 <div className="space-y-2">
-                  <Label htmlFor="signin-email">邮箱</Label>
+                  <Label htmlFor="signin-phone">手机号码</Label>
                   <Input
-                    id="signin-email"
-                    type="email"
-                    placeholder="your@email.com"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
+                    id="signin-phone"
+                    type="tel"
+                    placeholder="请输入手机号码"
+                    value={phone}
+                    onChange={(e) => setPhone(e.target.value.replace(/\D/g, ""))}
+                    maxLength={11}
                     required
                   />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="signin-password">密码</Label>
-                  <Input
-                    id="signin-password"
-                    type="password"
-                    placeholder="••••••••"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    required
-                  />
+                  <p className="text-xs text-muted-foreground">
+                    统一密码：123456
+                  </p>
                 </div>
                 <Button
                   type="submit"
@@ -137,26 +166,19 @@ export default function Login() {
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="signup-email">邮箱</Label>
+                  <Label htmlFor="signup-phone">手机号码</Label>
                   <Input
-                    id="signup-email"
-                    type="email"
-                    placeholder="your@email.com"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
+                    id="signup-phone"
+                    type="tel"
+                    placeholder="请输入手机号码"
+                    value={phone}
+                    onChange={(e) => setPhone(e.target.value.replace(/\D/g, ""))}
+                    maxLength={11}
                     required
                   />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="signup-password">密码</Label>
-                  <Input
-                    id="signup-password"
-                    type="password"
-                    placeholder="••••••••"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    required
-                  />
+                  <p className="text-xs text-muted-foreground">
+                    系统将自动设置密码为：123456
+                  </p>
                 </div>
                 <Button
                   type="submit"
