@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
-import { Calendar, Users, TrendingUp, CheckCircle2, XCircle } from "lucide-react";
+import { Calendar, Users, TrendingUp, CheckCircle2, XCircle, LogOut } from "lucide-react";
 import { TeacherClass, Student, StudentStats } from "@/types/database";
 
 export default function TeacherHome() {
@@ -110,8 +110,14 @@ export default function TeacherHome() {
               {classInfo.classes.grade} {classInfo.classes.class_number}
             </p>
           </div>
-          <Button variant="ghost" size="sm" onClick={signOut} className="text-primary-foreground hover:bg-white/20">
-            退出
+          <Button 
+            variant="ghost" 
+            size="icon" 
+            onClick={signOut} 
+            className="text-primary-foreground hover:bg-white/20"
+            title="退出登录"
+          >
+            <LogOut className="h-5 w-5" />
           </Button>
         </div>
 

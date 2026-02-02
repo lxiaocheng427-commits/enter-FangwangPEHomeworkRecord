@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
+import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -8,13 +9,14 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
-import { Calendar, Trophy, Activity } from "lucide-react";
+import { Calendar, Trophy, Activity, LogOut, UserCog, Users } from "lucide-react";
 import { Student, ExerciseRecord } from "@/types/database";
 
 const EXERCISE_TYPES = ["跳绳", "跑步", "仰卧起坐", "开合跳", "球类运动", "其他"];
 
 export default function ParentHome() {
-  const [student, setStudent] = useState<Student | null>(null);
+  const [students, setStudents] = useState<Student[]>([]);
+  const [selectedStudent, setSelectedStudent] = useState<Student | null>(null);
   const [exerciseType, setExerciseType] = useState("");
   const [customExercise, setCustomExercise] = useState("");
   const [notes, setNotes] = useState("");
@@ -24,24 +26,31 @@ export default function ParentHome() {
   const [loading, setLoading] = useState(false);
   const [stats, setStats] = useState({ total: 0, thisMonth: 0 });
   const { user, signOut } = useAuth();
+  const navigate = useNavigate();
   const { toast } = useToast();
 
-  const fetchStudent = useCallback(async () => {
+  const fetchStudents = useCallback(async () => {
     if (!user) return;
     const { data } = await supabase
       .from("students")
       .select("*, classes(grade, class_number)")
       .eq("parent_id", user.id)
-      .single();
-    if (data) setStudent(data as Student);
-  }, [user]);
+      .order("created_at", { ascending: true });
+    if (data && data.length > 0) {
+      setStudents(data as Student[]);
+      // 默认选中第一个学生
+      if (!selectedStudent) {
+        setSelectedStudent(data[0] as Student);
+      }
+    }
+  }, [user, selectedStudent]);
 
   const fetchRecords = useCallback(async () => {
-    if (!student) return;
+    if (!selectedStudent) return;
     const { data } = await supabase
       .from("exercise_records")
       .select("*")
-      .eq("student_id", student.id)
+      .eq("student_id", selectedStudent.id)
       .order("exercise_date", { ascending: false });
     
     if (data) {
@@ -54,17 +63,17 @@ export default function ParentHome() {
       });
       setStats({ total: data.length, thisMonth: thisMonth.length });
     }
-  }, [student]);
+  }, [selectedStudent]);
 
   useEffect(() => {
-    fetchStudent();
-  }, [fetchStudent]);
+    fetchStudents();
+  }, [fetchStudents]);
 
   useEffect(() => {
-    if (student) {
+    if (selectedStudent) {
       fetchRecords();
     }
-  }, [student, fetchRecords]);
+  }, [selectedStudent, fetchRecords]);
 
   const handlePhotoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -80,7 +89,7 @@ export default function ParentHome() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!student || !photoFile) return;
+    if (!selectedStudent || !photoFile) return;
 
     setLoading(true);
 
@@ -91,7 +100,7 @@ export default function ParentHome() {
       const { data: existingRecord } = await supabase
         .from("exercise_records")
         .select("*")
-        .eq("student_id", student.id)
+        .eq("student_id", selectedStudent.id)
         .eq("exercise_date", today)
         .maybeSingle();
 
@@ -107,7 +116,7 @@ export default function ParentHome() {
 
       // 上传照片
       const fileExt = photoFile.name.split('.').pop();
-      const fileName = `${student.id}-${Date.now()}.${fileExt}`;
+      const fileName = `${selectedStudent.id}-${Date.now()}.${fileExt}`;
       const { error: uploadError } = await supabase.storage
         .from("exercise-photos")
         .upload(fileName, photoFile);
@@ -123,7 +132,7 @@ export default function ParentHome() {
       const { error: insertError } = await supabase
         .from("exercise_records")
         .insert({
-          student_id: student.id,
+          student_id: selectedStudent.id,
           exercise_type: finalExerciseType,
           exercise_date: today,
           photo_url: publicUrl,
@@ -156,10 +165,21 @@ export default function ParentHome() {
     setLoading(false);
   };
 
-  if (!student) {
+  if (!selectedStudent) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <p className="text-muted-foreground">加载中...</p>
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary/10 via-background to-accent/10">
+        <Card className="max-w-md">
+          <CardHeader>
+            <CardTitle>暂无学生信息</CardTitle>
+            <CardDescription>请先添加学生</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Button onClick={() => navigate("/students")} className="w-full">
+              <Users className="h-4 w-4 mr-2" />
+              管理学生
+            </Button>
+          </CardContent>
+        </Card>
       </div>
     );
   }
@@ -169,21 +189,62 @@ export default function ParentHome() {
       {/* 头部 */}
       <div className="bg-gradient-to-r from-primary to-primary-glow text-primary-foreground p-6 rounded-b-3xl shadow-[var(--shadow-card)]">
         <div className="flex justify-between items-start mb-4">
-          <div>
-            <h1 className="text-2xl font-bold mb-1">{student.name}</h1>
-            <p className="text-sm opacity-90">
-              {student.classes?.grade} {student.classes?.class_number}
-            </p>
+          <div className="flex-1">
+            {/* 学生选择器 */}
+            {students.length > 1 ? (
+              <Select
+                value={selectedStudent.id}
+                onValueChange={(id) => {
+                  const student = students.find(s => s.id === id);
+                  if (student) setSelectedStudent(student);
+                }}
+              >
+                <SelectTrigger className="bg-white/10 border-white/20 text-primary-foreground mb-2">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {students.map((s) => (
+                    <SelectItem key={s.id} value={s.id}>
+                      {s.name} - {s.classes?.grade} {s.classes?.class_number}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            ) : (
+              <>
+                <h1 className="text-2xl font-bold mb-1">{selectedStudent.name}</h1>
+                <p className="text-sm opacity-90">
+                  {selectedStudent.classes?.grade} {selectedStudent.classes?.class_number}
+                </p>
+              </>
+            )}
           </div>
-          <Button variant="ghost" size="sm" onClick={signOut} className="text-primary-foreground hover:bg-white/20">
-            退出
-          </Button>
+          <div className="flex gap-2">
+            <Button 
+              variant="ghost" 
+              size="icon" 
+              onClick={() => navigate("/students")} 
+              className="text-primary-foreground hover:bg-white/20"
+              title="管理学生"
+            >
+              <UserCog className="h-5 w-5" />
+            </Button>
+            <Button 
+              variant="ghost" 
+              size="icon" 
+              onClick={signOut} 
+              className="text-primary-foreground hover:bg-white/20"
+              title="退出登录"
+            >
+              <LogOut className="h-5 w-5" />
+            </Button>
+          </div>
         </div>
         
         {/* 卡通形象 */}
         <div className="flex justify-center my-6">
           <div className="text-6xl">
-            {student.gender === "male" ? "🏃‍♂️" : "🏃‍♀️"}
+            {selectedStudent.gender === "male" ? "🏃‍♂️" : "🏃‍♀️"}
           </div>
         </div>
 

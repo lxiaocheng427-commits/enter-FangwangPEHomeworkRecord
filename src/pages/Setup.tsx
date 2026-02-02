@@ -41,6 +41,27 @@ export default function Setup() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!user) return;
+
+    // 验证教师必须选择班级
+    if (role === "teacher" && !classId) {
+      toast({
+        title: "设置失败",
+        description: "请选择管理班级",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // 验证家长填写学生信息时必须选择班级
+    if (role === "parent" && studentName && !classId) {
+      toast({
+        title: "设置失败",
+        description: "请选择学生班级",
+        variant: "destructive",
+      });
+      return;
+    }
+
     setLoading(true);
 
     try {
@@ -53,17 +74,19 @@ export default function Setup() {
       if (profileError) throw profileError;
 
       if (role === "parent") {
-        // 创建学生记录
-        const { error: studentError } = await supabase
-          .from("students")
-          .insert({
-            parent_id: user.id,
-            name: studentName,
-            gender,
-            class_id: classId,
-          });
+        // 如果填写了学生信息，则创建学生记录
+        if (studentName.trim() && classId) {
+          const { error: studentError } = await supabase
+            .from("students")
+            .insert({
+              parent_id: user.id,
+              name: studentName,
+              gender,
+              class_id: classId,
+            });
 
-        if (studentError) throw studentError;
+          if (studentError) throw studentError;
+        }
       } else {
         // 创建教师班级关联
         const { error: teacherError } = await supabase
@@ -144,51 +167,60 @@ export default function Setup() {
 
             {role === "parent" && (
               <>
+                <div className="p-3 bg-muted rounded-lg text-sm">
+                  <p className="text-muted-foreground">
+                    💡 提示：可以稍后在"管理学生"页面添加孩子信息
+                  </p>
+                </div>
+                
                 {/* 学生姓名 */}
                 <div className="space-y-2">
-                  <Label htmlFor="studentName">学生姓名</Label>
+                  <Label htmlFor="studentName">学生姓名（可选）</Label>
                   <Input
                     id="studentName"
                     value={studentName}
                     onChange={(e) => setStudentName(e.target.value)}
                     placeholder="请输入学生姓名"
-                    required
                   />
                 </div>
 
                 {/* 性别 */}
-                <div className="space-y-2">
-                  <Label>学生性别</Label>
-                  <RadioGroup value={gender} onValueChange={(v) => setGender(v as "male" | "female")} className="flex gap-4">
-                    <div className="flex items-center space-x-2">
-                      <RadioGroupItem value="male" id="male" />
-                      <Label htmlFor="male" className="cursor-pointer">男孩</Label>
-                    </div>
-                    <div className="flex items-center space-x-2">
-                      <RadioGroupItem value="female" id="female" />
-                      <Label htmlFor="female" className="cursor-pointer">女孩</Label>
-                    </div>
-                  </RadioGroup>
-                </div>
+                {studentName && (
+                  <div className="space-y-2">
+                    <Label>学生性别</Label>
+                    <RadioGroup value={gender} onValueChange={(v) => setGender(v as "male" | "female")} className="flex gap-4">
+                      <div className="flex items-center space-x-2">
+                        <RadioGroupItem value="male" id="male" />
+                        <Label htmlFor="male" className="cursor-pointer">男孩</Label>
+                      </div>
+                      <div className="flex items-center space-x-2">
+                        <RadioGroupItem value="female" id="female" />
+                        <Label htmlFor="female" className="cursor-pointer">女孩</Label>
+                      </div>
+                    </RadioGroup>
+                  </div>
+                )}
               </>
             )}
 
             {/* 班级选择 */}
-            <div className="space-y-2">
-              <Label htmlFor="class">{role === "parent" ? "学生班级" : "管理班级"}</Label>
-              <Select value={classId} onValueChange={setClassId} required>
-                <SelectTrigger>
-                  <SelectValue placeholder="请选择班级" />
-                </SelectTrigger>
-                <SelectContent>
-                  {classes.map((cls) => (
-                    <SelectItem key={cls.id} value={cls.id}>
-                      {cls.grade} {cls.class_number}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
+            {((role === "parent" && studentName) || role === "teacher") && (
+              <div className="space-y-2">
+                <Label htmlFor="class">{role === "parent" ? "学生班级" : "管理班级"}</Label>
+                <Select value={classId} onValueChange={setClassId} required>
+                  <SelectTrigger>
+                    <SelectValue placeholder="请选择班级" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {classes.map((cls) => (
+                      <SelectItem key={cls.id} value={cls.id}>
+                        {cls.grade} {cls.class_number}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
 
             <Button type="submit" className="w-full shadow-[var(--shadow-button)]" disabled={loading}>
               {loading ? "保存中..." : "完成设置"}

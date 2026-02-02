@@ -2,6 +2,7 @@ import Index from "./pages/Index";
 import Login from "./pages/Login";
 import Setup from "./pages/Setup";
 import AuthTest from "./pages/AuthTest";
+import ManageStudents from "./pages/ManageStudents";
 import NotFound from "./pages/NotFound";
 
 export const routers = [
@@ -24,6 +25,11 @@ export const routers = [
       path: "/test",
       name: 'test',
       element: <AuthTest />,
+    },
+    {
+      path: "/students",
+      name: 'students',
+      element: <ManageStudents />,
     },
     /* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */
     {

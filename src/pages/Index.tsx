@@ -23,15 +23,16 @@ const Index = () => {
 
     if (profileData) {
       // 检查是否需要完善信息
-      if (profileData.role === "parent" && (!profileData.students || profileData.students.length === 0)) {
+      if (profileData.role === "parent") {
+        // 家长可以没有学生，允许进入首页
+        setProfile(profileData as ProfileWithRelations);
+      } else if (profileData.role === "teacher" && (!profileData.teacher_classes || profileData.teacher_classes.length === 0)) {
+        // 教师必须有班级
         navigate("/setup");
         return;
+      } else {
+        setProfile(profileData as ProfileWithRelations);
       }
-      if (profileData.role === "teacher" && (!profileData.teacher_classes || profileData.teacher_classes.length === 0)) {
-        navigate("/setup");
-        return;
-      }
-      setProfile(profileData as ProfileWithRelations);
     }
     
     setCheckingProfile(false);
