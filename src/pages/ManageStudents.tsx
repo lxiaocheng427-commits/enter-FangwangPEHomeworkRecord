@@ -9,7 +9,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { useToast } from "@/hooks/use-toast";
-import { UserPlus, Trash2, ArrowLeft } from "lucide-react";
+import { UserPlus, Trash2, ArrowLeft, LogOut } from "lucide-react";
 import { Class, Student } from "@/types/database";
 import {
   AlertDialog,
@@ -31,7 +31,7 @@ export default function ManageStudents() {
   const [classes, setClasses] = useState<Class[]>([]);
   const [loading, setLoading] = useState(false);
   const [showAddForm, setShowAddForm] = useState(false);
-  const { user } = useAuth();
+  const { user, signOut } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
 
@@ -129,14 +129,23 @@ export default function ManageStudents() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-primary/10 via-background to-accent/10 p-4">
       <div className="container max-w-2xl mx-auto space-y-4">
-        <Button
-          variant="ghost"
-          onClick={() => navigate("/")}
-          className="mb-4"
-        >
-          <ArrowLeft className="h-4 w-4 mr-2" />
-          返回首页
-        </Button>
+        <div className="flex justify-between items-center mb-4">
+          <Button
+            variant="ghost"
+            onClick={() => navigate("/")}
+          >
+            <ArrowLeft className="h-4 w-4 mr-2" />
+            返回首页
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={signOut}
+            title="退出登录"
+          >
+            <LogOut className="h-5 w-5" />
+          </Button>
+        </div>
 
         <Card className="shadow-[var(--shadow-card)]">
           <CardHeader>

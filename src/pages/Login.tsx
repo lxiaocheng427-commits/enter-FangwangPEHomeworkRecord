@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -7,7 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
-import { Dumbbell } from "lucide-react";
+import { Dumbbell, RefreshCw } from "lucide-react";
 
 const UNIFIED_PASSWORD = "123456";
 
@@ -17,6 +17,32 @@ export default function Login() {
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
   const { toast } = useToast();
+
+  // 页面加载时清除缓存（可选）
+  useEffect(() => {
+    // 检查是否有强制退出的标记
+    const shouldClearCache = sessionStorage.getItem('force_logout');
+    if (shouldClearCache) {
+      sessionStorage.removeItem('force_logout');
+      localStorage.clear();
+      toast({
+        title: "已退出",
+        description: "缓存已清除",
+      });
+    }
+  }, [toast]);
+
+  // 手动清除缓存功能
+  const handleClearCache = () => {
+    localStorage.clear();
+    sessionStorage.clear();
+    toast({
+      title: "清除成功",
+      description: "所有缓存数据已清除",
+    });
+    // 强制刷新页面
+    window.location.reload();
+  };
 
   // 将手机号转换为邮箱格式以适配Supabase
   const phoneToEmail = (phoneNumber: string) => {
@@ -216,6 +242,19 @@ export default function Login() {
               </form>
             </TabsContent>
           </Tabs>
+          
+          {/* 清除缓存按钮 */}
+          <div className="mt-4 pt-4 border-t">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={handleClearCache}
+              className="w-full text-muted-foreground"
+            >
+              <RefreshCw className="h-4 w-4 mr-2" />
+              清除缓存数据
+            </Button>
+          </div>
         </CardContent>
       </Card>
     </div>

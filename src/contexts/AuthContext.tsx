@@ -40,7 +40,21 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   }, []);
 
   const signOut = async () => {
-    await supabase.auth.signOut();
+    try {
+      // 退出登录
+      await supabase.auth.signOut();
+      
+      // 清除所有本地存储
+      localStorage.clear();
+      sessionStorage.clear();
+      
+      // 强制刷新页面，回到登录页
+      window.location.href = '/login';
+    } catch (error) {
+      console.error('退出登录失败:', error);
+      // 即使出错也强制跳转到登录页
+      window.location.href = '/login';
+    }
   };
 
   return (

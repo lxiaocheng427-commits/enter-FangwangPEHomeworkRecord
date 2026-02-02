@@ -9,7 +9,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { useToast } from "@/hooks/use-toast";
-import { Users, GraduationCap } from "lucide-react";
+import { Users, GraduationCap, LogOut } from "lucide-react";
 import { Class } from "@/types/database";
 
 type Role = "parent" | "teacher";
@@ -22,7 +22,7 @@ export default function Setup() {
   const [classId, setClassId] = useState("");
   const [classes, setClasses] = useState<Class[]>([]);
   const [loading, setLoading] = useState(false);
-  const { user } = useAuth();
+  const { user, signOut } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
 
@@ -121,8 +121,20 @@ export default function Setup() {
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary/10 via-background to-accent/10 p-4">
       <Card className="w-full max-w-lg shadow-[var(--shadow-card)]">
         <CardHeader>
-          <CardTitle className="text-2xl">完善信息</CardTitle>
-          <CardDescription>请选择您的身份并完善相关信息</CardDescription>
+          <div className="flex justify-between items-start">
+            <div>
+              <CardTitle className="text-2xl">完善信息</CardTitle>
+              <CardDescription>请选择您的身份并完善相关信息</CardDescription>
+            </div>
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={signOut}
+              title="退出登录"
+            >
+              <LogOut className="h-5 w-5" />
+            </Button>
+          </div>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-6">
