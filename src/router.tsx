@@ -1,6 +1,7 @@
 import Index from "./pages/Index";
 import Login from "./pages/Login";
 import Setup from "./pages/Setup";
+import AuthTest from "./pages/AuthTest";
 import NotFound from "./pages/NotFound";
 
 export const routers = [
@@ -18,6 +19,11 @@ export const routers = [
       path: "/setup",
       name: 'setup',
       element: <Setup />,
+    },
+    {
+      path: "/test",
+      name: 'test',
+      element: <AuthTest />,
     },
     /* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */
     {

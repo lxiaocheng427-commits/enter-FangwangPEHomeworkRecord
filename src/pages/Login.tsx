@@ -20,7 +20,7 @@ export default function Login() {
 
   // 将手机号转换为邮箱格式以适配Supabase
   const phoneToEmail = (phoneNumber: string) => {
-    return `${phoneNumber}@fangwang.school`;
+    return `${phoneNumber}@fangwang.edu.cn`;
   };
 
   const validatePhone = (phoneNumber: string) => {
@@ -42,18 +42,28 @@ export default function Login() {
       return;
     }
 
-    const { error } = await supabase.auth.signInWithPassword({
-      email: phoneToEmail(phone),
+    const email = phoneToEmail(phone);
+    console.log("正在登录:", { email, phone });
+
+    const { data, error } = await supabase.auth.signInWithPassword({
+      email,
       password: UNIFIED_PASSWORD,
     });
 
+    console.log("登录结果:", { data, error });
+
     if (error) {
+      console.error("登录错误详情:", error);
       toast({
         title: "登录失败",
-        description: "手机号不存在或密码错误",
+        description: `${error.message}`,
         variant: "destructive",
       });
     } else {
+      toast({
+        title: "登录成功",
+        description: "正在跳转...",
+      });
       navigate("/");
     }
 
@@ -74,8 +84,21 @@ export default function Login() {
       return;
     }
 
-    const { error } = await supabase.auth.signUp({
-      email: phoneToEmail(phone),
+    if (!name.trim()) {
+      toast({
+        title: "注册失败",
+        description: "请输入姓名",
+        variant: "destructive",
+      });
+      setLoading(false);
+      return;
+    }
+
+    const email = phoneToEmail(phone);
+    console.log("正在注册:", { email, phone, name });
+
+    const { data, error } = await supabase.auth.signUp({
+      email,
       password: UNIFIED_PASSWORD,
       options: {
         data: {
@@ -86,12 +109,15 @@ export default function Login() {
       },
     });
 
+    console.log("注册结果:", { data, error });
+
     if (error) {
+      console.error("注册错误详情:", error);
       toast({
         title: "注册失败",
-        description: error.message.includes("already registered") 
+        description: error.message.includes("already registered") || error.message.includes("already been registered")
           ? "该手机号已注册" 
-          : "注册失败，请稍后重试",
+          : `错误：${error.message}`,
         variant: "destructive",
       });
     } else {
