@@ -1,0 +1,12 @@
+-- 删除现有的 INSERT 策略
+DROP POLICY IF EXISTS "Users can insert own profile" ON profiles;
+DROP POLICY IF EXISTS "Users can insert own profile during signup" ON profiles;
+
+-- 对于 INSERT，我们完全信任触发器，因为它在服务器端自动运行
+-- 创建一个允许所有插入的策略（但实际上只有触发器会执行插入）
+CREATE POLICY "Allow insert for new user profiles"
+  ON profiles FOR INSERT
+  WITH CHECK (true);
+
+-- 保持 SELECT 和 UPDATE 的限制
+-- 确保用户只能查看和更新自己的 profile

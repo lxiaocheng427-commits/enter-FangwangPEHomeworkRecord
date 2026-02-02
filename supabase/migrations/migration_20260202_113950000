@@ -1,0 +1,34 @@
+-- 删除过于宽松的策略
+DROP POLICY IF EXISTS "System can create profiles" ON profiles;
+
+-- 创建更安全的策略：只允许用户插入自己的 profile
+-- 但对于触发器（通过 postgres 用户执行），应该自动绕过 RLS
+CREATE POLICY "Users can insert own profile during signup"
+  ON profiles FOR INSERT
+  TO public  -- 允许所有用户（包括新注册的）
+  WITH CHECK (auth.uid() = id);
+
+-- 确保触发器函数能够绕过 RLS
+-- 重新创建触发器函数，明确设置为绕过 RLS
+CREATE OR REPLACE FUNCTION public.handle_new_user()
+RETURNS TRIGGER 
+SECURITY DEFINER  -- 以定义者（postgres）的权限运行
+SET search_path = public
+LANGUAGE plpgsql
+AS $$
+BEGIN
+  -- 直接插入，由于 SECURITY DEFINER，RLS 会被绕过
+  INSERT INTO public.profiles (id, role, name)
+  VALUES (
+    NEW.id, 
+    'parent', 
+    COALESCE(NEW.raw_user_meta_data->>'name', NEW.raw_user_meta_data->>'phone', '新用户')
+  );
+  RETURN NEW;
+EXCEPTION
+  WHEN others THEN
+    -- 记录错误但不阻止用户创建
+    RAISE WARNING 'Error creating profile for user %: %', NEW.id, SQLERRM;
+    RETURN NEW;
+END;
+$$;
