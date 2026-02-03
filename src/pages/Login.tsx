@@ -6,14 +6,18 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { useToast } from "@/hooks/use-toast";
-import { Dumbbell, RefreshCw } from "lucide-react";
+import { Dumbbell, RefreshCw, Users, GraduationCap } from "lucide-react";
 
 const UNIFIED_PASSWORD = "123456";
+
+type Role = "parent" | "teacher";
 
 export default function Login() {
   const [phone, setPhone] = useState("");
   const [name, setName] = useState("");
+  const [role, setRole] = useState<Role>("parent");
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
   const { toast } = useToast();
@@ -121,38 +125,68 @@ export default function Login() {
     }
 
     const email = phoneToEmail(phone);
-    console.log("正在注册:", { email, phone, name });
+    console.log("正在注册:", { email, phone, name, role });
 
-    const { data, error } = await supabase.auth.signUp({
-      email,
-      password: UNIFIED_PASSWORD,
-      options: {
-        data: {
-          name,
-          phone,
+    try {
+      // 第一步：注册用户
+      const { data: authData, error: authError } = await supabase.auth.signUp({
+        email,
+        password: UNIFIED_PASSWORD,
+        options: {
+          data: {
+            name,
+            phone,
+            role,
+          },
+          emailRedirectTo: `${window.location.origin}/`,
         },
-        emailRedirectTo: `${window.location.origin}/`,
-      },
-    });
-
-    console.log("注册结果:", { data, error });
-
-    if (error) {
-      console.error("注册错误详情:", error);
-      toast({
-        title: "注册失败",
-        description: error.message.includes("already registered") || error.message.includes("already been registered")
-          ? "该手机号已注册" 
-          : `错误：${error.message}`,
-        variant: "destructive",
       });
-    } else {
+
+      console.log("注册结果:", { authData, authError });
+
+      if (authError) {
+        console.error("注册错误详情:", authError);
+        toast({
+          title: "注册失败",
+          description: authError.message.includes("already registered") || authError.message.includes("already been registered")
+            ? "该手机号已注册" 
+            : `错误：${authError.message}`,
+          variant: "destructive",
+        });
+        setLoading(false);
+        return;
+      }
+
+      // 第二步：等待用户创建完成后更新profile的role
+      if (authData.user) {
+        // 等待一下确保profile创建完成
+        await new Promise(resolve => setTimeout(resolve, 1000));
+        
+        const { error: profileError } = await supabase
+          .from("profiles")
+          .update({ role, name })
+          .eq("id", authData.user.id);
+
+        if (profileError) {
+          console.error("更新profile错误:", profileError);
+        }
+      }
+
       toast({
         title: "注册成功",
-        description: "账号已创建，正在登录...",
+        description: "账号已创建，正在跳转...",
       });
-      // 注册成功后自动跳转
-      setTimeout(() => navigate("/"), 1000);
+      
+      // 注册成功后跳转到设置页面
+      setTimeout(() => navigate("/setup"), 1000);
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : '未知错误';
+      console.error("注册异常:", error);
+      toast({
+        title: "注册失败",
+        description: errorMessage,
+        variant: "destructive",
+      });
     }
 
     setLoading(false);
@@ -206,6 +240,33 @@ export default function Login() {
             </TabsContent>
             <TabsContent value="signup">
               <form onSubmit={handleSignUp} className="space-y-4">
+                {/* 身份选择 */}
+                <div className="space-y-3">
+                  <Label>选择身份</Label>
+                  <RadioGroup value={role} onValueChange={(v) => setRole(v as Role)} className="grid grid-cols-2 gap-4">
+                    <div>
+                      <RadioGroupItem value="parent" id="role-parent" className="peer sr-only" />
+                      <Label
+                        htmlFor="role-parent"
+                        className="flex flex-col items-center justify-between rounded-xl border-2 border-muted bg-card p-4 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary peer-data-[state=checked]:bg-primary/5 cursor-pointer transition-all"
+                      >
+                        <Users className="mb-3 h-6 w-6" />
+                        <span className="font-medium">家长</span>
+                      </Label>
+                    </div>
+                    <div>
+                      <RadioGroupItem value="teacher" id="role-teacher" className="peer sr-only" />
+                      <Label
+                        htmlFor="role-teacher"
+                        className="flex flex-col items-center justify-between rounded-xl border-2 border-muted bg-card p-4 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary peer-data-[state=checked]:bg-primary/5 cursor-pointer transition-all"
+                      >
+                        <GraduationCap className="mb-3 h-6 w-6" />
+                        <span className="font-medium">教师</span>
+                      </Label>
+                    </div>
+                  </RadioGroup>
+                </div>
+
                 <div className="space-y-2">
                   <Label htmlFor="signup-name">姓名</Label>
                   <Input

@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
@@ -9,7 +9,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { useToast } from "@/hooks/use-toast";
-import { Users, GraduationCap, LogOut } from "lucide-react";
+import { LogOut } from "lucide-react";
 import { Class } from "@/types/database";
 
 type Role = "parent" | "teacher";
@@ -22,13 +22,26 @@ export default function Setup() {
   const [classId, setClassId] = useState("");
   const [classes, setClasses] = useState<Class[]>([]);
   const [loading, setLoading] = useState(false);
+  const [initialLoading, setInitialLoading] = useState(true);
   const { user, signOut } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
 
-  useEffect(() => {
-    fetchClasses();
-  }, []);
+  const fetchUserProfile = useCallback(async () => {
+    if (!user) return;
+    
+    const { data: profileData } = await supabase
+      .from("profiles")
+      .select("role, name")
+      .eq("id", user.id)
+      .single();
+    
+    if (profileData) {
+      setRole(profileData.role as Role);
+      setName(profileData.name);
+    }
+    setInitialLoading(false);
+  }, [user]);
 
   const fetchClasses = async () => {
     const { data } = await supabase
@@ -37,6 +50,11 @@ export default function Setup() {
       .order("grade", { ascending: true });
     if (data) setClasses(data as Class[]);
   };
+
+  useEffect(() => {
+    fetchClasses();
+    fetchUserProfile();
+  }, [fetchUserProfile]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -65,10 +83,10 @@ export default function Setup() {
     setLoading(true);
 
     try {
-      // 更新profile
+      // 更新profile (只更新name，role已经在注册时设置)
       const { error: profileError } = await supabase
         .from("profiles")
-        .update({ role, name })
+        .update({ name })
         .eq("id", user.id);
 
       if (profileError) throw profileError;
@@ -117,6 +135,16 @@ export default function Setup() {
     setLoading(false);
   };
 
+  if (initialLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary/10 via-background to-accent/10">
+        <div className="text-center">
+          <p className="text-muted-foreground">加载中...</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary/10 via-background to-accent/10 p-4">
       <Card className="w-full max-w-lg shadow-[var(--shadow-card)]">
@@ -124,7 +152,9 @@ export default function Setup() {
           <div className="flex justify-between items-start">
             <div>
               <CardTitle className="text-2xl">完善信息</CardTitle>
-              <CardDescription>请选择您的身份并完善相关信息</CardDescription>
+              <CardDescription>
+                您注册为：<span className="font-medium text-primary">{role === "parent" ? "家长" : "教师"}</span>
+              </CardDescription>
             </div>
             <Button
               variant="ghost"
@@ -138,34 +168,7 @@ export default function Setup() {
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-6">
-            {/* 角色选择 */}
-            <div className="space-y-3">
-              <Label>选择身份</Label>
-              <RadioGroup value={role} onValueChange={(v) => setRole(v as Role)} className="grid grid-cols-2 gap-4">
-                <div>
-                  <RadioGroupItem value="parent" id="parent" className="peer sr-only" />
-                  <Label
-                    htmlFor="parent"
-                    className="flex flex-col items-center justify-between rounded-xl border-2 border-muted bg-card p-4 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary peer-data-[state=checked]:bg-primary/5 cursor-pointer transition-all"
-                  >
-                    <Users className="mb-3 h-6 w-6" />
-                    <span className="font-medium">家长</span>
-                  </Label>
-                </div>
-                <div>
-                  <RadioGroupItem value="teacher" id="teacher" className="peer sr-only" />
-                  <Label
-                    htmlFor="teacher"
-                    className="flex flex-col items-center justify-between rounded-xl border-2 border-muted bg-card p-4 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary peer-data-[state=checked]:bg-primary/5 cursor-pointer transition-all"
-                  >
-                    <GraduationCap className="mb-3 h-6 w-6" />
-                    <span className="font-medium">教师</span>
-                  </Label>
-                </div>
-              </RadioGroup>
-            </div>
-
-            {/* 姓名 */}
+            {/* 姓名 - 显示但可编辑 */}
             <div className="space-y-2">
               <Label htmlFor="name">{role === "parent" ? "家长姓名" : "教师姓名"}</Label>
               <Input
